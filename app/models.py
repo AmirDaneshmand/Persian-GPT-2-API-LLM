@@ -91,7 +91,7 @@ class PersianGPT2Model:
         generated_tokens = output_ids.shape[1] - prompt_tokens
         tokens_per_second = generated_tokens / inference_time
         
-        return {
+        metrics = {
             "generated_text": generated_text,
             "metrics": {
                 "inference_time_seconds": inference_time,
@@ -101,3 +101,25 @@ class PersianGPT2Model:
                 "total_tokens": prompt_tokens + generated_tokens
             }
         }
+
+        log_metrics(metrics)
+
+        return metrics
+    
+def log_metrics(metrics):
+    
+    log_entry = {
+        "timestamp": datetime.utcnow().isoformat(),
+        **metrics
+    }
+
+    log_dir = "logs"
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, "metrics_log.json")
+
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+
+
+
+    
