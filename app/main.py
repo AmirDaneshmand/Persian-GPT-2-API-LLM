@@ -4,6 +4,14 @@ from app.models import PersianGPT2Model
 from app.schemas import ChatRequest, ChatResponse
 import os
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from fastapi import status
+from contextlib import asynccontextmanager
+import json
+from datetime import datetime
+
+
+
 
 app = FastAPI(
     title="Persian GPT-2 API",
@@ -35,6 +43,8 @@ async def chat_endpoint(request: ChatRequest):
         )
     """Endpoint برای چت با مدل"""
     try:
+        # full_prompt = "\n".join(request.history + [request.prompt])
+
         generation_params = {
             'max_length': request.max_length,
             'temperature': request.temperature,
@@ -43,6 +53,7 @@ async def chat_endpoint(request: ChatRequest):
         }
         
         result = model.generate_text(request.prompt, generation_params)
+        # result = model.generate_text(full_prompt, generation_params)
         
         return {
             "response": result["generated_text"],
@@ -51,23 +62,43 @@ async def chat_endpoint(request: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+class WebhookRequest(BaseModel):
+    prompt: str
+    context: dict = None
+    options: dict = None
+
 @app.post("/webhook")
-async def webhook_endpoint(request: dict):
-    """Endpoint برای وب‌هوک"""
+async def webhook_endpoint(request: WebhookRequest):
+    """Endpoint برای وب‌هوک با اعتبارسنجی"""
     try:
-        # پردازش درخواست وب‌هوک (با توجه به ساختار خاص وب‌هوک شما)
-        prompt = request.get("prompt", "")
-        if not prompt:
-            return {"error": "Prompt is required"}
+        if not request.prompt.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Prompt cannot be empty"
+            )
+            
+        generation_params = {
+            'max_length': 100,
+            'temperature': 0.7,
+            'top_k': 50,
+            'top_p': 0.95
+        }
         
-        result = model.generate_text(prompt)
-        
+        result = model.generate_text(request.prompt, generation_params)
         return {
             "response": result["generated_text"],
-            "metrics": result["metrics"]
+            "metrics": result["metrics"],
+            "context": request.context
         }
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"خطای پردازش: {str(e)}"
+        )
 
 @app.get("/health")
 async def health_check():
@@ -81,8 +112,8 @@ async def home():
 
 
 
-@app.get('/favicon.ico', include_in_schema=False)
-async def get_favicon():
-    # مسیر به یک فایل favicon.ico (می‌توانید یک فایل ایجاد کنید یا از این استفاده کنید)
-    favicon_path = os.path.join(os.path.dirname(__file__), "favicon.ico")
-    return FileResponse(favicon_path)
+# @app.get('/favicon.ico', include_in_schema=False)
+# async def get_favicon():
+#     # مسیر به یک فایل favicon.ico (می‌توانید یک فایل ایجاد کنید یا از این استفاده کنید)
+#     favicon_path = os.path.join(os.path.dirname(__file__), "favicon.ico")
+#     return FileResponse(favicon_path)

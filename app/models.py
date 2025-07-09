@@ -3,6 +3,8 @@ import torch
 import time
 from typing import Dict, Any
 import os
+import json
+from datetime import datetime
 
 class PersianGPT2Model:
     def __init__(self, model_path: str):
@@ -26,15 +28,36 @@ class PersianGPT2Model:
     
     def generate_text(self, prompt: str, generation_params: Dict[str, Any] = None) -> Dict[str, Any]:
         if generation_params is None:
-            generation_params = {}
-        """تولید متن با ثبت معیارهای عملکرد"""
-        if generation_params is None:
             generation_params = {
                 'max_length': 100,
                 'do_sample': True,
-                'top_k': 50,
-                'top_p': 0.95,
-                'temperature': 0.8
+                # 'top_k': 50,
+                'top_k': 40,
+                # 'top_p': 0.95,
+                'top_p': 0.9,
+                # 'temperature': 0.8,
+                'temperature': 0.6,
+                # 'num_beams': 1,  # کاهش از 4 به 1 برای سرعت بیشتر
+                'num_beams': 3,
+                'early_stopping': True,
+                'no_repeat_ngram_size': 2
+            }
+        """تولید متن با ثبت معیارهای عملکرد"""
+        if generation_params is None:
+            generation_params = {
+                # 'max_length': 100,
+                # 'do_sample': True,
+                # 'top_k': 50,
+                # 'top_p': 0.95,
+                # 'temperature': 0.8
+                'max_length': 100,
+                'do_sample': False,           # نمونه برداری خاموش
+                'num_beams': 5,               # beam search قوی‌تر
+                'early_stopping': True,
+                'no_repeat_ngram_size': 4,    # جلوگیری از تکرار n-gram طولانی‌تر
+                'temperature': 1.0,           # یا حذف شود
+                'top_k': 0,                   # با beam search بهتر است روی 0 تنظیم شود
+                'top_p': 0.0                  # با beam search بهتر است روی 0 تنظیم شود
             }
         
         # زمان شروع
@@ -51,7 +74,12 @@ class PersianGPT2Model:
             temperature=generation_params.get("temperature", 0.7),
             top_k=generation_params.get("top_k", 50),
             top_p=generation_params.get("top_p", 0.95),
-            pad_token_id=self.tokenizer.eos_token_id
+            pad_token_id=self.tokenizer.eos_token_id,
+            
+            no_repeat_ngram_size=3,  # جلوگیری از تکرار
+            repetition_penalty=1.5,  # جریمه برای تکرار
+            do_sample=True,
+            early_stopping=True
         )
         
         # دیکد خروجی
